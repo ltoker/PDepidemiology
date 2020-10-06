@@ -1,8 +1,8 @@
 #devtools::install_git("https://github.com/JanMarvin/readspss.git")
 
 source("generalFunc.R")
-
-install_git("github.com/eliocamp/ggnewscale")
+packageF("devtools")
+install_git("https://github.com/eliocamp/ggnewscale")
 library("ggnewscale")
 packageF("tidyr")
 
@@ -33,7 +33,7 @@ SetAgeGroup <- function(AgeStart = 30, AgeEnd = 99, Gap = 5, Agevec){
 
 
 #https://www.ssb.no/en/statbank
-StatBankDataPerYear <- read.table("PersonerByOneAgeYear.txt", header = T, sep = "\t")
+StatBankDataPerYear <- read.table("data/PersonerByOneAgeYear.txt", header = T, sep = "\t")
 
 AgeGroups5 <- SetAgeGroup(AgeStart = 30, AgeEnd = 99, Gap = 5, Agevec = StatBankDataPerYear$Age)
 AgeGroups2 <- SetAgeGroup(AgeStart = 30, AgeEnd = 99, Gap = 2, Agevec = StatBankDataPerYear$Age)
@@ -44,7 +44,7 @@ StatBankDataPerYear <- merge(StatBankDataPerYear, AgeGroups5, by = "Age", all.x 
 StatBankDataPerYear %<>% mutate(YearAgeSex = paste(Year, Age, Sex, sep = "_"),
                                 YearAgeGroupSex = paste(Year, AgeGroup, Sex, sep = "_"))
 
-StatBankDataPerYear_death <- read.table("DeathByOneYear.txt", header = T, sep = "\t")
+StatBankDataPerYear_death <- read.table("data/DeathByOneYear.txt", header = T, sep = "\t")
 StatBankDataPerYear_death %<>% gather(key = "Year", value = "Death", -Sex, -Age)
 StatBankDataPerYear_death$Year <- sapply(StatBankDataPerYear_death$Year, function(x) gsub("X", "", x)) %>% as.numeric()
 StatBankDataPerYear_death <- merge(StatBankDataPerYear_death, AgeGroups5, by = "Age", all.x = T) %>% arrange(Sex, Age, Year)
@@ -71,7 +71,7 @@ StatBankDataPerYear %<>% filter(Age != "Younger than 30") %>% droplevels()
 
 #Get PD data
 
-PDdataAll <- read.table("PDdata_Allupdated.txt", header = T, sep = "\t")
+PDdataAll <- read.table("data/PDdata_Allupdated.txt", header = T, sep = "\t")
 
 #PD prevalance based on Norwegian drug registry
 #PDprevalencePerYear <- read.table("PDprevalenceOneAgeYear.txt", header = T, sep = "\t") %>% filter(Prescription == 3)
@@ -308,7 +308,7 @@ tempLong$Group <- sapply(tempLong$Group, function(x) {
 })
 
 
-lm(log(Mortality)~Year+Sex*Group + as.numeric(AgeGroup), data = tempLong %>% filter(!is.infinite(Mortality))) %>% summary()
+lm(log(Mortality)~Year+Group*Sex + as.numeric(AgeGroup), data = tempLong %>% filter(!is.infinite(Mortality))) %>% summary()
 lm(log(Mortality)~Year+Sex + as.numeric(AgeGroup), data = tempLong %>% filter(Group == "All")) %>% summary()
 lm(log(Mortality)~Year+Sex + as.numeric(AgeGroup), data = tempLong %>% filter(Group == "PD")) %>% summary()
 
@@ -584,7 +584,7 @@ ggplot(CombinedDataFiveYearWide_Long %>%
   geom_hline(yintercept = 1.5, color = "red", linetype = "dashed")
 
 # Mortality ratio, ratio plot
-ggplot(CombinedData5YearWide %>% filter(!is.na(Prevalence_Males), DeathPD_Males > 5, DeathPD_Females > 5, !is.infinite(MortalityPDRatio)), aes(AgeGroup, MortalityPDRatio/MortalityRatio)) +
+ggplot(CombinedDataFiveYearWide %>% filter(!is.na(Prevalence_Males), DeathPD_Males > 5, DeathPD_Females > 5, !is.infinite(MortalityPDRatio)), aes(AgeGroup, MortalityPDRatio/MortalityRatio)) +
   labs(x ="Age group", y = "PD/All Mortality ratio", title = "") +
   theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_line(colour = "grey50", linetype = "dashed"),
         panel.grid.major.y = element_line(colour = "grey50", linetype = "dashed") ) +
@@ -597,7 +597,7 @@ ggplot(CombinedData5YearWide %>% filter(!is.na(Prevalence_Males), DeathPD_Males 
 
 
 #Incidence ratio plot
-ggplot(CombinedData5YearWide %>% filter(PDnew_Females > 10, PDnew_Males > 10), aes(AgeGroup, IncidenceRatio)) +
+ggplot(CombinedDataFiveYearWide %>% filter(PDnew_Females > 10, PDnew_Males > 10), aes(AgeGroup, IncidenceRatio)) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_blank(),
         panel.grid.major.y = element_line(colour = "grey50", linetype = "dashed"),
