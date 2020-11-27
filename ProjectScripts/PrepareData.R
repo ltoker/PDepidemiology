@@ -24,7 +24,7 @@ SetAgeGroup <- function(AgeStart = 30, AgeEnd = 99, Gap = 5, Agevec){
   DF$AgeGroup[DF$Age < AgeStart] <- paste0("Younger than ", AgeStart)
   DF$AgeGroup[DF$Age > AgeEnd | DF$Age == "105 or older"] <- paste0(AgeEnd + 1, " or older")
   DF$AgeGroup <- factor(DF$AgeGroup, levels = unique(DF$AgeGroup))
-  names(DF)[names(DF == "AgeGroup")] <- paste("AgeGroup", Gap)
+  names(DF)[names(DF) == "AgeGroup"] <- paste0("AgeGroup", Gap)
   return(DF)
 }
 
