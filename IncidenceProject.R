@@ -312,6 +312,8 @@ lm(log(Mortality)~Year+Group*Sex + as.numeric(AgeGroup), data = tempLong %>% fil
 lm(log(Mortality)~Year+Sex + as.numeric(AgeGroup), data = tempLong %>% filter(Group == "All")) %>% summary()
 lm(log(Mortality)~Year+Sex + as.numeric(AgeGroup), data = tempLong %>% filter(Group == "PD")) %>% summary()
 
+lm(log(MortalityPD)~ Sex  + Year + log(Mortality),
+   data = CombinedDataFiveYears %>% filter(DeathPD > 3)) %>% summary
 
 
 # CombinedDataFiveYears %<>% mutate(Mortality = 100000*Death/Number,
@@ -517,6 +519,7 @@ ggplot(CombinedDataFiveYears %>% filter(Year < 2017, Year > 2004, DeathPD > 5), 
              position = position_dodge2(width = 0.5)) 
 
 
+lm(Mortality)
 #Look at the ratio M/F ratios
 CombinedDataFiveYearWide <- pivot_wider(CombinedDataFiveYears %>% droplevels() %>%
                                   select(Year, AgeGroup, Sex,
@@ -583,6 +586,9 @@ ggplot(CombinedDataFiveYearWide_Long %>%
   scale_color_manual(values = c("darkgrey", "coral4")) +
   geom_hline(yintercept = 1.5, color = "red", linetype = "dashed")
 
+
+CombinedDataFiveYearWide %>% head
+
 # Mortality ratio, ratio plot
 ggplot(CombinedDataFiveYearWide %>% filter(!is.na(Prevalence_Males), DeathPD_Males > 5, DeathPD_Females > 5, !is.infinite(MortalityPDRatio)), aes(AgeGroup, MortalityPDRatio/MortalityRatio)) +
   labs(x ="Age group", y = "PD/All Mortality ratio", title = "") +
@@ -597,7 +603,9 @@ ggplot(CombinedDataFiveYearWide %>% filter(!is.na(Prevalence_Males), DeathPD_Mal
 
 
 #Incidence ratio plot
-ggplot(CombinedDataFiveYearWide %>% filter(PDnew_Females > 10, PDnew_Males > 10), aes(AgeGroup, IncidenceRatio)) +
+ggplot(CombinedDataFiveYearWide %>%
+         filter(PDnew_Females > 10, PDnew_Males > 10, Year > 2004, Year < 2017),
+       aes(AgeGroup, IncidenceRatio)) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_blank(),
         panel.grid.major.y = element_line(colour = "grey50", linetype = "dashed"),
@@ -609,6 +617,8 @@ ggplot(CombinedDataFiveYearWide %>% filter(PDnew_Females > 10, PDnew_Males > 10)
   geom_point(aes(color = as.character(Year)),
              position = position_dodge2(width = 0.5)) 
 
+lm(IncidenceRatio~AgeRangeNumeric + Year, data = CombinedDataFiveYearWide %>%
+     filter(PDnew_Females > 10, PDnew_Males > 10, Year > 2004, Year < 2017)) %>% summary
 
 packageF("ggpubr")
 ggarrange(IncidencePlot, IncidenceRatioPlot, ncol = 1)
@@ -621,7 +631,7 @@ ggplot(CombinedData5YearWide %>% filter(PDnew_Females > 10, PDnew_Males > 10), a
                                 RColorBrewer::brewer.pal(9, name = "Oranges")[-1])) +
   geom_point(aes(color = AgeGroup))
 
-ggplot(CombinedData5YearWide %>% filter(PrevalenceRaw_Females > 10, PrevalenceRaw_Males > 10),
+ggplot(CombinedDataFiveYearWide %>% filter(PrevalenceRaw_Females > 10, PrevalenceRaw_Males > 10),
        aes(AgeGroup, PrevalenceRatio)) +
   geom_boxplot(outlier.shape = NA) +
   labs(x ="Age group", y = "Prevalence ratio", title = "PD - definite") +
@@ -629,55 +639,14 @@ ggplot(CombinedData5YearWide %>% filter(PrevalenceRaw_Females > 10, PrevalenceRa
                                 RColorBrewer::brewer.pal(9, name = "Oranges")[-1])) +
   geom_point(aes(color = as.character(Year)))
 
-ggplot(CombinedData5YearWide %>% filter(PDnew_Females > 10, PDnew_Males > 10),
-       aes(PrevalenceRatio, IncidenceRatio)) +
-  scale_color_manual(values = c(rev(RColorBrewer::brewer.pal(7, name = "Purples")[-1]),
-                                RColorBrewer::brewer.pal(9, name = "Oranges")[-1])) +
-  geom_point(aes(color = as.character(Year))) +
-  geom_abline(slope = 1, intercept = 0) +
-  facet_wrap(~AgeGroup)
-  
+
 
 lm(IncidenceRatio~AgeRangeNumeric + Year,
-   data = CombinedData5YearWide %>% filter(PDnew_Females > 10, PDnew_Males > 10)) %>% summary() 
+   data = CombinedDataFiveYearWide %>% filter(PDnew_Females > 10, PDnew_Males > 10)) %>% summary() 
 
 lm(PrevalenceRatio~AgeRangeNumeric + Year,
-   data = CombinedData5YearWide %>% filter(PDnew_Females > 10, PDnew_Males > 10)) %>% summary() 
+   data = CombinedDataFiveYearWide %>% filter(PDnew_Females > 10, PDnew_Males > 10)) %>% summary() 
 
-
-temp <- CombinedData5YearWide %>% filter(AgeGroup == "85-89")
-wilcox.test(temp$MortalityRatio, temp$MortalityPDRatio)
-
-
-PDincidence2 <- read.table("PDincidenceUncertain.txt", header = T, sep = "\t")
-PDincidenceLong2 <- PDincidence2 %>% filter(!Year %in% c(2004, 2017)) %>%
-  gather(key = "AgeGroup", value = "PDnew", -Prescription, -Sex, -Year) 
-
-PDincidenceLong2$AgeGroup <- sapply(as.character(PDincidenceLong2$AgeGroup), function(x){
-  x <- gsub("X", "", x)
-  x <- gsub("^\\.", ">", x)
-  gsub("\\.", "-", x)
-})
-
-PDincidenceLong2 %<>% mutate(YearAgeSex = paste(Year, AgeGroup, Sex, sep = "_"))
-
-
-CombinedData2 <- merge(StatBankData, PDincidenceLong2 %>%
-                        filter(Prescription == 2) %>%
-                        select(PDnew, YearAgeSex), by = "YearAgeSex")
-
-CombinedData2 %<>% mutate(Incidence = 100000*PDnew/Number)
-
-ggplot(CombinedData2 %>% filter(Year > 2007), aes(age, Incidence)) +
-  labs(x ="Age group", y = "Incidence (per 100,000)", title = "PD - Uncertain") +
-  geom_boxplot(outlier.shape = NA, aes(fill = sex)) +
-  scale_fill_manual(values = c("brown", "darkgreen")) +
-  scale_color_manual(values = c(rev(RColorBrewer::brewer.pal(7, name = "Purples")[-1]),
-                                RColorBrewer::brewer.pal(9, name = "Oranges")[-1])) +
-  geom_point(aes(color = as.character(Year), group = sex),
-             position = position_dodge2(width = 0.5))
-
-#Prevalence
 
 
 #ParkWest data
