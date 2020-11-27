@@ -1,8 +1,3 @@
-BiocManager::install("devtools")
-library(devtools)
-source_url("https://github.com/ltoker/GeneralRscripts/blob/main/generalFunc.R?raw=T")
-
-
 SetAgeGroup <- function(AgeStart = 30, AgeEnd = 99, Gap = 5, Agevec){
   DF <- data.frame(Age = unique(Agevec))
   Groups <- vector(length = length(AgeStart:AgeEnd)/Gap)
@@ -23,7 +18,6 @@ SetAgeGroup <- function(AgeStart = 30, AgeEnd = 99, Gap = 5, Agevec){
   DF %<>% mutate(AgeGroup = as.character(AgeGroup))
   DF$AgeGroup[DF$Age < AgeStart] <- paste0("Younger than ", AgeStart)
   DF$AgeGroup[DF$Age > AgeEnd | DF$Age == "105 or older"] <- paste0(AgeEnd + 1, " or older")
-  DF$AgeGroup <- factor(DF$AgeGroup, levels = unique(DF$AgeGroup))
   names(DF)[names(DF) == "AgeGroup"] <- paste0("AgeGroup", Gap)
   return(DF)
 }
@@ -33,11 +27,18 @@ SetAgeGroup <- function(AgeStart = 30, AgeEnd = 99, Gap = 5, Agevec){
 StatBankDataPerYear <- read.table("data/PersonerByOneAgeYearUpdated.txt", header = T, sep = "\t", comment.char = "#") %>% select(-Region)
 
 AgeGroups <- SetAgeGroup(AgeStart = 30, AgeEnd = 99, Gap = 5, Agevec = StatBankDataPerYear$Age)
-AgeGroups %<>% mutate(AgeGroup5b = as.character(AgeGroup5))
+AgeGroups %<>% mutate(AgeGroup5b = AgeGroup5)
 AgeGroups$AgeGroup5b[AgeGroups$Age < 60 & AgeGroups$Age > 29 ] <- "30-59"
-AgeGroups$AgeGroup5b <- factor(AgeGroups5$AgeGroup2, levels = unique(AgeGroups$AgeGroup2))
-AgeGroups$AgeGroup10 <- SetAgeGroup(AgeStart = 30, AgeEnd = 99, Gap = 10, Agevec = StatBankDataPerYear$Age)
+AgeGroups$AgeGroup5b <- factor(AgeGroups$AgeGroup5b, levels = unique(AgeGroups$AgeGroup5b))
+
+AgeGroups10 <- SetAgeGroup(AgeStart = 30, AgeEnd = 99, Gap = 10, Agevec = StatBankDataPerYear$Age)
+AgeGroups <- merge(AgeGroups, AgeGroups10, by = "Age") 
 AgeGroups$AgeGroup10[AgeGroups$Age < 60 & AgeGroups$Age > 29 ] <- "30-59"
+
+AgeGroups$AgeGroup5 <- factor(AgeGroups$AgeGroup5, levels = unique(AgeGroups$AgeGroup5))
+AgeGroups$AgeGroup5b <- factor(AgeGroups$AgeGroup5b, levels = unique(AgeGroups$AgeGroup5b))
+AgeGroups$AgeGroup10 <- factor(AgeGroups$AgeGroup10, levels = unique(AgeGroups$AgeGroup10))
+
 
 StatBankDataPerYear %<>% gather(key = "Year", value = "Number", -Sex, -Age)
 StatBankDataPerYear$Year <- sapply(StatBankDataPerYear$Year, function(x) gsub("X", "", x)) %>% as.numeric()
@@ -133,7 +134,7 @@ IndividualMortalityAll <- IndividualMortality
 ggplot(IndividualMortality %>% filter(!is.na(AgeGroup5)), aes(YearsOnPrescription, YearsOffPrescription)) +
   theme_bw() +
   geom_point(size = 0.3) +
-  facet_wrap(~AgeGroup)
+  facet_wrap(~AgeGroup5)
 
 ggplot(IndividualMortality %>% filter(!is.na(AgeGroup5)), aes(YearsOnPrescription, YearsOffPrescription)) +
   theme_bw() +
@@ -220,45 +221,6 @@ CombinedData$BirthEvent <- sapply(CombinedData$BirthDate, function(x){
   }
 })
 
-#Plot Incidence per Age year
-ggplot(CombinedData %>% filter(Year < 2017, Year > 2004, !is.na(Incidence), Incidence > 0), aes(Age, Incidence)) +
-  theme_bw() +
-  theme(panel.grid.major.y = element_line(colour = "grey50", linetype = "dashed"),
-        axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(x ="", y = "Incidence (per 100,000)", title = "PD - definite") +
-  scale_fill_manual(values = c("brown", "darkgreen")) +
-  scale_color_manual(values = c(rev(RColorBrewer::brewer.pal(7, name = "Purples")[-1]),
-                                RColorBrewer::brewer.pal(9, name = "Oranges")[-1]), name = "Year") +
-  geom_point(aes(color = as.character(Year))) +
-  geom_smooth() +
-  facet_wrap(~Sex)
-
-#Plot Prevalence per Age year
-ggplot(CombinedData %>% filter(Year < 2017, Year > 2004, !is.na(Prevalence), Prevalence >= 0), aes(Age, Prevalence)) +
-  theme_bw() +
-  theme(panel.grid.major.y = element_line(colour = "grey50", linetype = "dashed"),
-        axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(x ="", y = "Prevalence (per 100,000)", title = "PD - definite") +
-  scale_fill_manual(values = c("brown", "darkgreen")) +
-  scale_color_manual(values = c(rev(RColorBrewer::brewer.pal(7, name = "Purples")[-1]),
-                                RColorBrewer::brewer.pal(9, name = "Oranges")[-1]), name = "Year") +
-  geom_point(aes(color = as.character(Year))) +
-  geom_smooth() +
-  facet_wrap(~Sex)
-
-
-#Plot PD mortality per Age year
-ggplot(CombinedData %>% filter(Year < 2017, Year > 2004, !is.na(MortalityPD), DeathPD > 5, Age > 45), aes(Age, MortalityPD)) +
-  theme_bw() +
-  theme(panel.grid.major.y = element_line(colour = "grey50", linetype = "dashed"),
-        axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(x ="", y = "MortalityPD (per 100,000)", title = "PD - definite") +
-  scale_fill_manual(values = c("brown", "darkgreen")) +
-  scale_color_manual(values = c(rev(RColorBrewer::brewer.pal(7, name = "Purples")[-1]),
-                                RColorBrewer::brewer.pal(9, name = "Oranges")[-1]), name = "Year") +
-  geom_point(aes(color = as.character(Year))) +
-  geom_smooth() +
-  facet_wrap(~Sex)
 
 
 
@@ -282,16 +244,16 @@ CombinedDataFiveYears <- CombinedData %>%
          Prevalence2 = (10^5)*PrevalenceRaw/Number,
          Mortality2 = (10^5)*Death/Number,
          MortalityPD2 = (10^5)*DeathPD/PrevalenceRaw) %>%
-  arrange(Sex, Year, AgeGroup5) %>%
-  select(Sex, AgeGroup5, Year, Number, Death, PDnew, PrevalenceRaw,
+  arrange(Sex, Year, AgeGroup) %>%
+  select(Sex, AgeGroup, Year, Number, Death, PDnew, PrevalenceRaw,
          DeathPD, Mortality, Mortality2, Incidence, Incidence2,
-         Prevalence,  Prevalence2, MortalityPD,MortalityPD2,  YearAgeGroupSex) %>%
+         Prevalence,  Prevalence2, MortalityPD,MortalityPD2,  YearAgeGroupSex5) %>%
   mutate(DeltaPD = PDnew - DeathPD)
                                           
                                                            
 
 
-CombinedDataFiveYears2 <- CombinedData %>%
+CombinedDataFiveYears5b <- CombinedData %>%
   group_by(YearAgeGroupSex5b) %>% summarise(AgeGroup = unique(AgeGroup5b),
                                             Sex = unique(Sex),
                                             Year = unique(Year),
@@ -312,7 +274,7 @@ CombinedDataFiveYears2 <- CombinedData %>%
   arrange(Sex, Year, AgeGroup) %>% 
   select(Sex, AgeGroup, Year, Number, Death, PDnew, PrevalenceRaw,
          DeathPD, Mortality, Mortality2, Incidence, Incidence2,
-         Prevalence,  Prevalence2, MortalityPD,MortalityPD2,  YearAgeGroupSex2) %>%
+         Prevalence,  Prevalence2, MortalityPD,MortalityPD2,  YearAgeGroupSex5b) %>%
   mutate(DeltaPD = PDnew - DeathPD)
 
 
@@ -337,5 +299,5 @@ CombinedDataFiveYears10 <- CombinedData %>%
   arrange(Sex, Year, AgeGroup) %>% 
   select(Sex, AgeGroup, Year, Number, Death, PDnew, PrevalenceRaw,
          DeathPD, Mortality, Mortality2, Incidence, Incidence2,
-         Prevalence,  Prevalence2, MortalityPD,MortalityPD2,  YearAgeGroupSex2) %>%
+         Prevalence,  Prevalence2, MortalityPD,MortalityPD2,  YearAgeGroupSex10) %>%
   mutate(DeltaPD = PDnew - DeathPD)
