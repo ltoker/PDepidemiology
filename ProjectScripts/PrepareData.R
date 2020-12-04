@@ -172,7 +172,7 @@ PrevalencePD <- sapply(c(2004:2016), function(Year){
                    Age = Year - PasientFodtAr)
   group_by(data, Age, Sex) %>% summarise(PrevalenceRaw = n(), Year = unique(Year), .groups = 'drop') %>%
     mutate(YearAgeSex = paste(Year, Age, Sex, sep = "_"))
-}, simplify = F) %>% rbindlist() %>% data.frame() %>% filter(Year > 2004)
+}, simplify = F) %>% rbindlist() %>% data.frame()
 
 
 
@@ -194,10 +194,10 @@ CombinedData <- merge(StatBankDataPerYear, SummarizedPD,
 CombinedData$PDnew[CombinedData$Year > 2004 &
                      CombinedData$Year < 2017 &
                      is.na(CombinedData$PDnew)] <- 0
-CombinedData$PrevalenceRaw[CombinedData$Year > 2004 &
+CombinedData$PrevalenceRaw[CombinedData$Year > 2003 &
                              CombinedData$Year < 2017 &
                              is.na(CombinedData$PrevalenceRaw)] <- 0
-CombinedData$DeathPD[CombinedData$Year > 2004 &
+CombinedData$DeathPD[CombinedData$Year > 2003 &
                              CombinedData$Year < 2017 &
                              is.na(CombinedData$DeathPD)] <- 0
 
@@ -301,3 +301,41 @@ CombinedDataFiveYears10 <- CombinedData %>%
          DeathPD, Mortality, Mortality2, Incidence, Incidence2,
          Prevalence,  Prevalence2, MortalityPD,MortalityPD2,  YearAgeGroupSex10) %>%
   mutate(DeltaPD = PDnew - DeathPD)
+
+
+#Wide formats
+CombinedDataFiveYearWide5b <- pivot_wider(CombinedDataFiveYears5b %>% droplevels() %>%
+                                          select(Year, AgeGroup, Sex,
+                                                 Number, Death, Mortality, 
+                                                 PDnew, Incidence,
+                                                 PrevalenceRaw, Prevalence,
+                                                 DeathPD, MortalityPD),
+                                        names_from = Sex,
+                                        values_from = c(Number, Death, Mortality,PDnew, Incidence,
+                                                        PrevalenceRaw, Prevalence,
+                                                        DeathPD,MortalityPD)) %>% data.frame() %>%
+  mutate(MortalityRatio = Mortality_M/Mortality_F,
+         IncidenceRatio = Incidence_M/Incidence_F,
+         PrevalenceRatio = Prevalence_M/Prevalence_F,
+         MortalityPDRatio = MortalityPD_M/MortalityPD_F,
+         AgeRangeNumeric = as.numeric(AgeGroup))
+
+
+CombinedDataWide <- pivot_wider(CombinedData %>% droplevels() %>%
+                                  select(Year, Age, Sex,
+                                         Number, Death, Mortality, 
+                                         PDnew, Incidence,
+                                         PrevalenceRaw, Prevalence,
+                                         DeathPD, MortalityPD),
+                                names_from = Sex,
+                                values_from = c(Number, Death, Mortality,PDnew, Incidence,
+                                                PrevalenceRaw, Prevalence,
+                                                DeathPD,MortalityPD)) %>% data.frame() %>%
+  mutate(MortalityRatio = Mortality_M/Mortality_F,
+         IncidenceRatio = Incidence_M/Incidence_F,
+         PrevalenceRatio = Prevalence_M/Prevalence_F,
+         MortalityPDRatio = MortalityPD_M/MortalityPD_F,
+         MortalityProp = Mortality_M/(Mortality_F+Mortality_M),
+         IncidenceProp = Incidence_M/(Incidence_F+Incidence_M),
+         PrevalenceProp = Prevalence_M/(Prevalence_F+Prevalence_M),
+         MortalityPDProp = MortalityPD_M/(MortalityPD_F+MortalityPD_M))
