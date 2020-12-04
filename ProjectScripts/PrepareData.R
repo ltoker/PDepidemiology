@@ -172,7 +172,7 @@ PrevalencePD <- sapply(c(2004:2016), function(Year){
                    Age = Year - PasientFodtAr)
   group_by(data, Age, Sex) %>% summarise(PrevalenceRaw = n(), Year = unique(Year), .groups = 'drop') %>%
     mutate(YearAgeSex = paste(Year, Age, Sex, sep = "_"))
-}, simplify = F) %>% rbindlist() %>% data.frame()
+}, simplify = F) %>% rbindlist() %>% data.frame() %>% filter(Year > 2004)
 
 
 
@@ -194,10 +194,10 @@ CombinedData <- merge(StatBankDataPerYear, SummarizedPD,
 CombinedData$PDnew[CombinedData$Year > 2004 &
                      CombinedData$Year < 2017 &
                      is.na(CombinedData$PDnew)] <- 0
-CombinedData$PrevalenceRaw[CombinedData$Year > 2003 &
+CombinedData$PrevalenceRaw[CombinedData$Year > 2004 &
                              CombinedData$Year < 2017 &
                              is.na(CombinedData$PrevalenceRaw)] <- 0
-CombinedData$DeathPD[CombinedData$Year > 2003 &
+CombinedData$DeathPD[CombinedData$Year > 2004 &
                              CombinedData$Year < 2017 &
                              is.na(CombinedData$DeathPD)] <- 0
 
