@@ -147,8 +147,8 @@ ggsave("Results/KaplanMeierPlotAll.pdf", plot = KaplanMeierPlot,
 
 #Compare five year PD survival between cased with incidence 2005-2007 and cases with incidence
 #2010-2012
-SubPDsurvivalEarly <- IndividualMortality %>% filter(year(DateFirstDrug) >= 2004,
-                                                     year(DateFirstDrug) <= 2006)
+SubPDsurvivalEarly <- IndividualMortality %>% filter(year(DateFirstDrug) >= 2005,
+                                                     year(DateFirstDrug) <= 2007)
 
 SubPDsurvivalLate <- IndividualMortality %>% filter(year(DateFirstDrug) >= 2010,
                                                      year(DateFirstDrug) <= 2012)
@@ -188,7 +188,7 @@ KMplotBySex <- function(sex, Colors = c(MoviePalettes$MoonRiseKingdomColors[4],
                          censor = T, censor.size = 3,
                          pval = T,
                          censor.shape = 124, conf.int = F,
-                         legend.labs = c("2004-2006", "2010-2012"),
+                         legend.labs = c("2005-2007", "2010-2012"),
                          legend.title = "")
       temp$plot <- temp$plot + coord_cartesian(ylim=Ylim)
       temp
