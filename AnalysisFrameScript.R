@@ -19,3 +19,5 @@ source("ProjectScripts/EpiPlotting.R")
 
 #Survival analysis - Kaplan-Meier
 source("ProjectScripts/SurvivalAnalyses.R")
+
+saveRDS(session_info(), "SessionInf.Rds")
