@@ -1,15 +1,56 @@
-source("ProjectScripts/PrepareData.R")
+#source("ProjectScripts/PrepareData.R")
 install_github("https://github.com/eliocamp/ggnewscale")
 library("ggnewscale")
 packageF("grid")
 packageF("epitools")
-packageF("gt")
+packageF("jtools")
+packageF("forestplot")
+#packageF("gt")
 
+
+PlotEachYear <- function(measure, title, LegendPos = "none"){
+  Plot <- ggplot(CombinedData %>% filter(Year < 2017, Year > 2004), aes_string("Age", measure)) +
+    theme_bw() +
+    theme(panel.grid.major.y = element_line(colour = "grey50", linetype = "dashed"),
+          panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(), 
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = LegendPos) +
+    labs(x ="", y = paste0(measure, " (per 100,000)"), title = title,
+         subtitle = "(not binned by age groups)") +
+    scale_x_continuous(n.breaks = 8) +
+    scale_fill_manual(values = c("brown", "darkgreen")) +
+    scale_color_manual(values = c(rev(RColorBrewer::brewer.pal(7, name = "Purples")[-1]),
+                                  RColorBrewer::brewer.pal(9, name = "Oranges")[-1]), name = "Year") +
+    geom_point(aes(color = as.character(Year))) +
+    geom_smooth(method = lm, formula = y ~ splines::bs(x, 3), color = "black") +
+    facet_wrap(~Sex)
+  ChangeFacetLabels(Plot, FillCol = c(MoviePalettes$BugsLife[4],
+                                                      MoviePalettes$BugsLife[2]))
+}
+
+#Plot Incidence, prevalence and PD mortality not binned by age groups
+IncidenceEachAgePlot <- PlotEachYear("Incidence", "PD incidence")
+
+PrevalenceEachAgePlot <- PlotEachYear("Prevalence", "PD prevalence")
+
+MortalityPDEachAgePlot <- PlotEachYear("MortalityPD", "PD mortality")
+
+temp <- ggplot(CombinedData %>% filter(Year < 2017, Year > 2004), aes(Age, Incidence)) +
+  theme_bw() +
+  geom_point(aes(color = as.character(Year))) +
+  scale_color_manual(values = c(rev(RColorBrewer::brewer.pal(7, name = "Purples")[-1]),
+                                RColorBrewer::brewer.pal(9, name = "Oranges")[-1]), name = "Year")
+    
+
+ggarrange(ggarrange(IncidenceEachAgePlot, PrevalenceEachAgePlot, MortalityPDEachAgePlot, ncol = 1),
+          legend.grob = get_legend(temp), legend = "right")
+
+ggsave(paste0(ResultsPath, "DescriptiveEpiUnbinned.pdf"), device = "pdf", width = 6, height = 9, dpi = 300, useDingbats = F)
 
 #### Plot General population sizes across the years in different population groups
 
 RectDFyears <- data.frame(xMin = c(-Inf, 2016),
-                          xMax = c(2005, Inf),
+                          xMax = c(2004, Inf),
                           yMin = -Inf, yMax = Inf,
                           Color = "grey")
 
@@ -42,9 +83,9 @@ PopulationSizePlot <- ChangeFacetLabels(PopulationSizePlot, FillCol = c(MoviePal
 
 RelData <- sapply(unique(CombinedDataFiveYears$AgeGroup), function(ageGroup){
   data <- CombinedDataFiveYears %>% filter(AgeGroup == ageGroup,
-                                           Year > 2004, Year < 2017,
+                                           Year > 2003, Year < 2017,
                                            !AgeGroup %in%  c("Younger than 30", "100 or older")) %>%
-    select(AgeGroup, Sex, Year, Mortality, PDnew, PrevalenceRaw, DeathPD, Incidence, Prevalence, MortalityPD, YearAgeGroupSex)
+    select(AgeGroup, Sex, Year, Mortality, PDnew, PrevalenceRaw, DeathPD, Incidence, Prevalence, MortalityPD, YearAgeGroupSex5)
   dataNorm <- sapply(unique(data$Sex), function(sex){
     dataSex = data %>% filter(Sex == sex) %>% mutate(RelMortality = rescale(Mortality, c(0,1)),
                                                      RelIncidence = rescale(Incidence, c(0,1)),
@@ -54,7 +95,7 @@ RelData <- sapply(unique(CombinedDataFiveYears$AgeGroup), function(ageGroup){
 }, simplify = F) %>% rbindlist() %>% data.frame() %>% droplevels()
 
 LogMortalityPlot <- ggplot(CombinedDataFiveYears %>%
-                             filter(Year < 2017, Year > 2005,
+                             filter(Year < 2017, Year > 2003,
                                     !AgeGroup %in% c("Younger than 30", "100 or older")),
                            aes(AgeGroup, log(Mortality), color = Sex)) +
   theme_minimal() +
@@ -80,6 +121,8 @@ RelMortalityPlot <- ggplot(RelData, aes(AgeGroup, as.character(Year))) +
   
   facet_wrap(~Sex, nrow = 1, scales = "free_x")
 
+
+
 RelMortalityPlot <- ChangeFacetLabels(RelMortalityPlot, FillCol = c(MoviePalettes$BugsLife[4],
                                                                     MoviePalettes$BugsLife[2]))
 
@@ -91,7 +134,7 @@ ggsave("Results/PopulationDemographics.pdf", device = "pdf", width = 10, height 
 
 #Plot Population size
 PopoultayionByAgeGroupPlot <- ggplot(CombinedDataFiveYears %>%
-                                       filter(Year < 2017, Year > 2004, AgeGroup != "100 or older"),
+                                       filter(Year < 2017, Year > 2003, AgeGroup != "100 or older"),
                                      aes(AgeGroup, Number)) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_blank(),
@@ -135,7 +178,7 @@ PDincidencePlot <- ggplot(CombinedDataFiveYears %>%
   geom_boxplot(outlier.shape = NA, aes(fill = Sex)) #+
 
 
-RelIncidencePlot <- ggplot(RelData, aes(AgeGroup, as.character(Year))) +
+RelIncidencePlot <- ggplot(RelData %>% filter(Year > 2004), aes(AgeGroup, as.character(Year))) +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
         legend.background = element_rect(colour = NA), legend.box.spacing = unit(0.1, "line"),
@@ -156,44 +199,6 @@ ggarrange(PDincidencePlot, RelIncidencePlot, ncol = 2, widths = c(1.5,2))
 ggsave("Results/PDincidence.pdf", device = "pdf", width = 10, height = 4, dpi = 300, useDingbats = F)
 
 
-
-#Plotting incidence change over years
-IncidenceChangePlot1 <- ggplot(CombinedDataFiveYears2 %>%
-                                 filter(AgeGroup %in% c("30-59", "60-64", "65-69", "70-74"),
-                                        Year > 2004, Year < 2017),
-                               aes(Year,Incidence, color = AgeGroup)) +
-  theme_classic() +
-  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-        legend.box.spacing = unit(0.05, "line"), legend.spacing.x = unit(0.2, 'mm')) +
-  guides(color = guide_legend(title.position = "top")) +
-  labs(title = "", y = "Incidence (per 100,000)", x = "") +
-  geom_point(size = 1) +
-  scale_color_manual(values = MoviePalettes$MoonRiseKingdomColors) +
-  scale_x_continuous(n.breaks = 17) +
-  geom_line(size = 1.2, alpha = 0.7) +
-  facet_wrap(~Sex, ncol = 1, scales = "free_y")
-
-IncidenceChangePlot1 <- ChangeFacetLabels(IncidenceChangePlot1, FillCol = c(MoviePalettes$BugsLife[4],
-                                                                            MoviePalettes$BugsLife[2]))
-
-IncidenceChangePlot2 <- ggplot(CombinedDataFiveYears2 %>%
-                                 filter(AgeGroup %in% c("75-79", "80-84", "85-89", "90-94"),
-                                        Year > 2004, Year < 2017),
-                               aes(Year,Incidence, color = AgeGroup)) +
-  theme_classic() +
-  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-        legend.box.spacing = unit(0.05, "line"), legend.spacing.x = unit(0.2, 'mm')) +
-  guides(color = guide_legend(title.position = "top")) +
-  labs(title = "", y = "", x = "") +
-  geom_point(size = 1) +
-  scale_color_manual(values = MoviePalettes$MoonRiseKingdomColors) +
-  scale_x_continuous(n.breaks = 17) +
-  geom_line(size = 1.2, alpha = 0.7) +
-  facet_wrap(~Sex, ncol = 1, scales = "free_y")
-
-IncidenceChangePlot2 <- ChangeFacetLabels(IncidenceChangePlot2, FillCol = c(MoviePalettes$BugsLife[4],
-                                                                            MoviePalettes$BugsLife[2]))
-ggarrange(IncidenceChangePlot1, IncidenceChangePlot2, ncol = 2)                                                                       
 
 #Plot PD Prevalence
 PDprevalencePlot <- ggplot(CombinedDataFiveYears %>% 
@@ -217,7 +222,7 @@ PDprevalencePlot <- ggplot(CombinedDataFiveYears %>%
   geom_boxplot(outlier.shape = NA, aes(fill = Sex))
 
 
-RelPrevalencePlot <- ggplot(RelData, aes(AgeGroup, as.character(Year))) +
+RelPrevalencePlot <- ggplot(RelData %>% filter(Year > 2004), aes(AgeGroup, as.character(Year))) +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
         legend.background = element_rect(colour = NA), legend.box.spacing = unit(0.1, "line"),
@@ -238,75 +243,42 @@ ggarrange(PDprevalencePlot, RelPrevalencePlot, ncol = 2, widths = c(1.5,2))
 ggsave("Results/PDprevalence.pdf", device = "pdf", width = 10, height = 4, dpi = 300, useDingbats = F)
 
 
-PrevalenceChangePlot1 <- ggplot(CombinedDataFiveYears %>%
-                                  filter(AgeGroup %in% c("35-39", "40-44", "45-49", 
-                                                         "50-54", "55-59", "60-64"),
-                                         Year > 2004, Year < 2017),
-                                aes(Year,Prevalence, color = AgeGroup)) +
-  theme_classic() +
-  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-        legend.box.spacing = unit(0.05, "line"), legend.spacing.x = unit(0.2, 'mm')) +
-  guides(color = guide_legend(title.position = "top")) +
-  labs(title = "", y = "Prevalence (per 100,000)", x = "") +
-  geom_point(size = 1) +
-  scale_color_manual(values = MoviePalettes$MoonRiseKingdomColors) +
-  scale_x_continuous(n.breaks = 17) +
-  geom_line(size = 1.2, alpha = 0.7) +
-  facet_wrap(~Sex, ncol = 1, scales = "free_y")
-
-PrevalenceChangePlot1 <- ChangeFacetLabels(PrevalenceChangePlot1, FillCol = c(MoviePalettes$BugsLife[4],
-                                                                              MoviePalettes$BugsLife[2]))
-
-PrevalenceChangePlot2 <- ggplot(CombinedDataFiveYears %>%
-                                  filter(AgeGroup %in% c("65-69", "70-74", "75-79",
-                                                         "80-84", "85-89", "90-94"),
-                                         Year > 2004, Year < 2017),
-                                aes(Year,Prevalence, color = AgeGroup)) +
-  theme_classic() +
-  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-        legend.box.spacing = unit(0.05, "line"), legend.spacing.x = unit(0.2, 'mm')) +
-  guides(color = guide_legend(title.position = "top")) +
-  labs(title = "", y = "", x = "") +
-  geom_point(size = 1) +
-  scale_color_manual(values = MoviePalettes$MoonRiseKingdomColors) +
-  scale_x_continuous(n.breaks = 17) +
-  geom_line(size = 1.2, alpha = 0.7) +
-  facet_wrap(~Sex, ncol = 1, scales = "free_y")
-
-PrevalenceChangePlot2 <- ChangeFacetLabels(PrevalenceChangePlot2, FillCol = c(MoviePalettes$BugsLife[4],
-                                                                              MoviePalettes$BugsLife[2]))
-ggarrange(PrevalenceChangePlot1, PrevalenceChangePlot2, ncol = 2)       
+ggarrange(PDincidencePlot, PDprevalencePlot)
+ggsave("Results/PDinc_prev.pdf", device = "pdf", width = 10, height = 4, dpi = 300, useDingbats = F)
 
 
 
 #Plot PD Mortality
-MortalityPDPlot <- ggplot(CombinedDataFiveYears %>%
+MortalityPDPlot <- ggplot(CombinedDataFiveYears5b %>%
                             filter(Year > 2004, Year < 2017,
-                                   !is.na(MortalityPD), DeathPD > 2,
-                                   PrevalenceRaw > 5,
+                                   !is.na(MortalityPD),
                                    !AgeGroup %in% c("Younger than 30", "100 or older")),
-                          aes(AgeGroup, log(MortalityPD))) +
-  theme_bw() +
-  theme(panel.grid.minor.y = element_blank(),
-        panel.grid.major.x = element_blank(),
-        panel.grid.major.y = element_line(colour = "grey50", linetype = "dashed"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = c(0.15,0.8),
-        legend.background  = element_rect(fill = 0, color = 0),
-        legend.key = element_rect(fill = 0, color = 0)) +
-  labs(x ="", y = "log (Mortality/ per 100K)", title = "PD mortality\n(Death > 2, raw prevalence > 5)") +
-  new_scale("fill") +
-  scale_fill_manual(values = c(MoviePalettes$BugsLife[4],
-                               MoviePalettes$BugsLife[2]), name = "") +
-  geom_rect(data = RectDF[1:5, ],
-            aes(xmin=xMin, xmax=xMax, ymin=yMin, ymax=yMax),
-            fill = "grey",
-            alpha=0.4, inherit.aes = FALSE) +
-  geom_boxplot(outlier.shape = NA, aes(fill = Sex))
+                          aes(AgeGroup, log(MortalityPD), color = Sex)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        legend.position = c(0.1,0.8)) +
+  coord_cartesian(ylim = c(4, 12)) +
+  scale_color_manual(values = c(MoviePalettes$BugsLife[4],
+                                MoviePalettes$BugsLife[2]), name = "") +
+  labs(x ="", y = "log(Mortality (per 100,000))", title = "PD mortality") +
+  stat_summary(fun.data = "mean_sdl",  position =position_dodge(width = 0.3), size = 0.2)
+
+LogMortalityPlot2 <- ggplot(CombinedDataFiveYears5b %>%
+                             filter(Year < 2017, Year > 2004,
+                                    !AgeGroup %in% c("Younger than 30", "100 or older")),
+                           aes(AgeGroup, log(Mortality), color = Sex)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        legend.position = c(0.1,0.8)) +
+  coord_cartesian(ylim = c(4, 12)) +
+  scale_color_manual(values = c(MoviePalettes$BugsLife[4],
+                                MoviePalettes$BugsLife[2]), name = "") +
+  labs(x ="", y = "log(Mortality (per 100,000))", title = "General population mortality") +
+  stat_summary(fun.data = "mean_sdl",  position =position_dodge(width = 0.3), size = 0.2)
 
 
 RelMortalityPDPlot <- ggplot(RelData %>% filter(!AgeGroup %in% c("30-34", "35-39",
-                                                                 "40-44", "45-49")),
+                                                                 "40-44", "45-49"), Year >2004),
                              aes(AgeGroup, as.character(Year))) +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
@@ -326,53 +298,63 @@ RelMortalityPDPlot <- ChangeFacetLabels(RelMortalityPDPlot, FillCol = c(MoviePal
                                                                         MoviePalettes$BugsLife[2]))
 ggarrange(MortalityPDPlot, RelMortalityPDPlot, ncol = 2, widths = c(1.5,2))
 ggsave("Results/PDmortality.pdf", device = "pdf", width = 10, height = 4, dpi = 300, useDingbats = F)
-ggsave("Results/PDmortality.png", device = "png", width = 10, height = 4, dpi = 300)
 
 
 
-MortalityPDChangePlot1 <- ggplot(CombinedDataFiveYears %>%
-                                   filter(AgeGroup %in% c("35-39", "40-44", "45-49", 
-                                                          "50-54", "55-59", "60-64"),
-                                          Year > 2004, Year < 2017),
-                                 aes(Year,MortalityPD, color = AgeGroup)) +
-  theme_classic() +
-  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-        legend.box.spacing = unit(0.05, "line"), legend.spacing.x = unit(0.2, 'mm')) +
-  guides(color = guide_legend(title.position = "top")) +
-  labs(title = "", y = "MortalityPD (per 100,000)", x = "") +
-  geom_point(size = 1) +
-  scale_color_manual(values = MoviePalettes$MoonRiseKingdomColors) +
-  scale_x_continuous(n.breaks = 17) +
-  geom_line(size = 1.2, alpha = 0.7) +
-  facet_wrap(~Sex, ncol = 1, scales = "free_y")
+## Ploting the yearly changes in measures
+PlotMeasureChangeSub <- function(data = CombinedDataFiveYears5b, Agegroups,
+                              YearMin = 2005, YearMax = 2016, measure, colors,
+                              alpha = 1, linesize = 1, pointsize = 1){
+  Plot <- ggplot(data %>%
+                   filter(AgeGroup %in% Agegroups,
+                          Year >= YearMin, Year <= YearMax),
+                 aes_string("Year",measure, color = "AgeGroup")) +
+    theme_classic() +
+    theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+          legend.box.spacing = unit(0.05, "line"), legend.spacing.x = unit(0.2, 'mm')) +
+    guides(color = guide_legend(title.position = "top")) +
+    labs(title = "", y = paste0(measure, " (per 100,000)", x = "")) +
+    geom_point(size = pointsize) +
+    scale_color_manual(values = colors) +
+    scale_x_continuous(n.breaks = 17) +
+    geom_line(size = linesize, alpha = alpha) +
+    facet_wrap(~Sex, ncol = 1, scales = "free_y")
+  
+  ChangeFacetLabels(Plot, FillCol = c(MoviePalettes$BugsLife[4],
+                                      MoviePalettes$BugsLife[2]))
+}
 
-MortalityPDChangePlot1 <- ChangeFacetLabels(MortalityPDChangePlot1, FillCol = c(MoviePalettes$BugsLife[4],
-                                                                                MoviePalettes$BugsLife[2]))
 
-MortalityPDChangePlot2 <- ggplot(CombinedDataFiveYears %>%
-                                   filter(AgeGroup %in% c("65-69", "70-74", "75-79",
-                                                          "80-84", "85-89", "90-94"),
-                                          Year > 2004, Year < 2017),
-                                 aes(Year,MortalityPD, color = AgeGroup)) +
-  theme_classic() +
-  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-        legend.box.spacing = unit(0.05, "line"), legend.spacing.x = unit(0.2, 'mm')) +
-  guides(color = guide_legend(title.position = "top")) +
-  labs(title = "", y = "", x = "") +
-  geom_point(size = 1) +
-  scale_color_manual(values = MoviePalettes$MoonRiseKingdomColors) +
-  scale_x_continuous(n.breaks = 17) +
-  geom_line(size = 1.2, alpha = 0.7) +
-  facet_wrap(~Sex, ncol = 1, scales = "free_y")
+PlotMeasureChangeWrap <- function(data = CombinedDataFiveYears5b, measure,
+                                  AgeGroups1 = c("30-59", "60-64", "65-69", "70-74"),
+                                  AgeGroups2 = c("75-79", "80-84", "85-89", "90-94"),
+                                  colors1 = MoviePalettes$BlueIsTheWarmestColor[c(10, 4, 6, 7)],
+                                  colors2 = MoviePalettes$BlueIsTheWarmestColor[c(10, 4, 6, 7)]){
+  
+  Plot1 <- PlotMeasureChangeSub(data = CombinedDataFiveYears5b,
+                                Agegroups =  AgeGroups1,
+                                measure = measure,
+                                colors = colors1)
+  
+  Plot2 <- PlotMeasureChangeSub(data = CombinedDataFiveYears5b,
+                                Agegroups =  AgeGroups2,
+                                measure = measure,
+                                colors = colors2)
+  ggarrange(Plot1, Plot2, ncol = 2)                             
+  
+}
 
-MortalityPDChangePlot2 <- ChangeFacetLabels(MortalityPDChangePlot2, FillCol = c(MoviePalettes$BugsLife[4],
-                                                                                MoviePalettes$BugsLife[2]))
-ggarrange(MortalityPDChangePlot1, MortalityPDChangePlot2, ncol = 2)   
 
+
+IncidenceChangePlot <- PlotMeasureChangeWrap(data = CombinedDataFiveYears5b, measure = "Incidence")
+
+PrevaenceChangePlot <- PlotMeasureChangeWrap(data = CombinedDataFiveYears5b, measure = "Prevalence")
+                                        
+MortalityChangePlot <- PlotMeasureChangeWrap(data = CombinedDataFiveYears5b, measure = "MortalityPD")
 
 
 #Plot PD mortality relative to general mortality
-RelativeMortalityPlot <- ggplot(CombinedDataFiveYears2 %>% filter(Year < 2017, Year > 2004,
+RelativeMortalityPlot <- ggplot(CombinedDataFiveYears5b %>% filter(Year < 2017, Year > 2004,
                                                                   DeathPD > 2,
                                                                   AgeGroup != "100 or older"),
                                 aes(AgeGroup, MortalityPD/Mortality)) +
@@ -397,156 +379,44 @@ RelativeMortalityPlot <- ggplot(CombinedDataFiveYears2 %>% filter(Year < 2017, Y
   coord_cartesian(ylim = c(0, 7)) +
   geom_hline(yintercept = 1, color = "red")
 
-ggsave("Results/RelativeMortalityPlot", plot = RelativeMortalityPlot,  device = "pdf", width = 6, height = 4, dpi = 300, useDingbats = F)
-ggsave("Results/PRelativeMortalityPlot.png", plot = RelativeMortalityPlot, device = "png", width = 6, height = 4, dpi = 300)
+
+ggsave("Results/RelativeMortalityPlot.pdf", plot = RelativeMortalityPlot,  device = "pdf", width = 6, height = 4, dpi = 300, useDingbats = F)
 
 
-
-#Look at the ratio M/F ratios
-CombinedDataFiveYearWide <- pivot_wider(CombinedDataFiveYears %>% droplevels() %>%
-                                          select(Year, AgeGroup, Sex,
-                                                 Number, Death, Mortality, 
-                                                 PDnew, Incidence,
-                                                 PrevalenceRaw, Prevalence,
-                                                 DeathPD, MortalityPD),
-                                        names_from = Sex,
-                                        values_from = c(Number, Death, Mortality,PDnew, Incidence,
-                                                        PrevalenceRaw, Prevalence,
-                                                        DeathPD,MortalityPD)) %>% data.frame() %>%
-  mutate(MortalityRatio = Mortality_M/Mortality_F,
-         IncidenceRatio = Incidence_M/Incidence_F,
-         PrevalenceRatio = Prevalence_M/Prevalence_F,
-         MortalityPDRatio = MortalityPD_M/MortalityPD_F,
-         AgeRangeNumeric = as.numeric(AgeGroup))
-
-
-CombinedDataWide <- pivot_wider(CombinedData %>% droplevels() %>%
-                                  select(Year, Age, Sex,
-                                         Number, Death, Mortality, 
-                                         PDnew, Incidence,
-                                         PrevalenceRaw, Prevalence,
-                                         DeathPD, MortalityPD),
-                                names_from = Sex,
-                                values_from = c(Number, Death, Mortality,PDnew, Incidence,
-                                                PrevalenceRaw, Prevalence,
-                                                DeathPD,MortalityPD)) %>% data.frame() %>%
-  mutate(MortalityRatio = Mortality_M/Mortality_F,
-         IncidenceRatio = Incidence_M/Incidence_F,
-         PrevalenceRatio = Prevalence_M/Prevalence_F,
-         MortalityPDRatio = MortalityPD_M/MortalityPD_F)
-
-#M/F Mortality ratio plots
-# Mortality ratio M/F plot General population - points (long Format again)
-CombinedDataFiveYearWide_Long <- gather(CombinedDataFiveYearWide, key = "Group",
-                                        value = "MortalityRatio", matches("Mortality(PD)?Ratio"))
-CombinedDataFiveYearWide_Long$Group <- sapply(CombinedDataFiveYearWide_Long$Group, function(x){
-  if(x == "MortalityRatio"){
-    "All"
-  } else if(x == "MortalityPDRatio"){
-    "PD"
-  }
-})
-
-
-ggplot(CombinedDataFiveYearWide_Long %>%
-         filter(!is.na(Prevalence_M), Death_M > 5, DeathPD_F > 5, AgeGroup != "55-59"),
-       aes(AgeGroup, MortalityRatio, color = Group)) +
-  theme_bw() +
-  labs(x ="Age group", y = "M/F Mortality ratio", title = "Mortality M/F ratio") +
-  theme(panel.grid = element_blank()) +
-  #geom_point(position =position_dodge(width = 0.3), aes(group = Group), size = 1, alpha = 0.5) +
-  stat_summary(fun.data = "mean_se", position =position_dodge(width = 0.3), size = 0.5) +
-  scale_color_manual(values = c("darkgrey", "coral4")) +
-  geom_hline(yintercept = 1.5, color = "red", linetype = "dashed")
-
-
-
-
-#Incidence ratio plot
-StatIncidenceRatio <- lm(IncidenceRatio~AgeRangeNumeric + Year, data = CombinedDataFiveYearWide %>%
-                           filter(PDnew_F > 5, PDnew_M > 5, Year > 2004, Year < 2017)) %>% summary
-
-StatIncidenceRatioDF <- data.frame(x = 4, y = 3.5,
-                                   label = paste0("Coef = ", round(StatIncidenceRatio$coefficients[2,1], digits = 3),
-                                                  ", p = ",
-                                                  signif(StatIncidenceRatio$coefficients[2,4], digits = 2)))
-
-IncidenceRatioPlot <- ggplot(CombinedDataFiveYearWide %>%
-                               filter(PDnew_F > 5, PDnew_M > 5, Year > 2004, Year < 2017),
-                             aes(AgeGroup, IncidenceRatio)) +
-  theme_bw() +
-  theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_blank(),
-        panel.grid.major.y = element_line(colour = "grey50", linetype = "dashed"),
-        axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(x = "", y = "Male/Female incidence ratio", title = "PDnew_F > 5 & PDnew_M > 5") + 
-  geom_boxplot(outlier.shape = NA, fill = MoviePalettes$AmericanBeauty[3]) +
-  # scale_color_manual(values = c(rev(RColorBrewer::brewer.pal(7, name = "Purples")[-1]),
-  #                               RColorBrewer::brewer.pal(9, name = "Oranges")[-1]), name = "Year") +
-  # geom_point(aes(color = as.character(Year)),
-  #            position = position_dodge2(width = 0.5))
-  geom_jitter(width = 0.2, height = 0, size = 1, color = MoviePalettes$AmericanBeauty[1]) +
-  geom_hline(yintercept = 1.5, color = "red") +
-  geom_text(data = StatIncidenceRatioDF, aes(x, y, label = label))
-
-ggsave("Results/IncidenceRatioPlot.pdf", plot = IncidenceRatioPlot,  device = "pdf", width = 5, height = 5, dpi = 300, useDingbats = F)
-ggsave("Results/IncidenceRatioPlot.png", device = "png", width = 5, height = 5, dpi = 300)
-
-
+#Plot incidence ratio separately in each age
 ggplot(CombinedDataWide %>%
-         filter(PDnew_F > 3, PDnew_M > 3, Year > 2004, Year < 2017),
+         filter(PDnew_F > 2, PDnew_M > 2, Year > 2004, Year < 2017),
        aes(Age, IncidenceRatio)) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_blank(),
-        panel.grid.major.y = element_line(colour = "grey50", linetype = "dashed"),
-        axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(x = "", y = "Male/Female incidence ratio", title = "") + 
-  #geom_boxplot(outlier.shape = NA, fill = "grey") +
+        panel.grid.major.y = element_line(colour = "grey50", linetype = "dashed")) +
+  labs(x = "Age (years)", y = "Male/Female incidence ratio", title = "PDnew_F > 2 & PDnew_M > 2") + 
   scale_color_manual(values = c(rev(RColorBrewer::brewer.pal(7, name = "Purples")[-1]),
                                 RColorBrewer::brewer.pal(9, name = "Oranges")[-1]), name = "Year") +
   geom_point(aes(color = as.character(Year))) +
-  geom_smooth(method = "lm", formula = )
+  geom_smooth(method = "lm",color = "black")
 
-lm(IncidenceRatio~Age + Year, data = CombinedDataWide %>%
-     filter(PDnew_F > 3, PDnew_M > 3, Year > 2004, Year < 2017)) %>% summary
+ggsave("Results/IncidenceRatioPerage.pdf", device = "pdf", width = 8, height = 8, dpi = 300, useDingbats = F)
 
-glm(IncidenceRatio~Age + Year, family = "poisson", data = CombinedDataWide %>% 
-     filter(PDnew_F > 3, PDnew_M > 3, Year > 2004, Year < 2017)) %>% summary
 
-glm(IncidenceRatio~as.numeric(AgeGroup) + Year, family = "poisson", data = CombinedDataFiveYearWide %>% 
-      filter(PDnew_F > 3, PDnew_M > 3, Year > 2004, Year < 2017)) %>% summary
+#linear regression for incidence ratio age dependency
+lm(IncidenceRatio~Age + c(Year-2015), data = CombinedDataWide %>%
+     filter(PDnew_F > 2, PDnew_M > 2, Year > 2004, Year < 2017)) %>% summary
 
-#Incidence ratio plot
-StatPrevalenceRatio <- lm(PrevalenceRatio~AgeRangeNumeric + Year, data = CombinedDataFiveYearWide %>%
-                            filter(PrevalenceRaw_F > 5, PrevalenceRaw_M > 5, Year > 2004, Year < 2017)) %>% summary
 
-StatPrevalenceRatioDF <- data.frame(x = 5, y = 3.5,
-                                    label = paste0("Coef = ", round(StatPrevalenceRatio$coefficients[2,1], digits = 3),
-                                                   ", p = ",
-                                                   signif(StatPrevalenceRatio$coefficients[2,4], digits = 2)))
+#Negative binomial regression to check for whether the effect of sex
+IncideceRatioStat2 <- MASS::glm.nb(PDnew ~ c(Age-30)+Sex + Year + offset(log(Number)),data = CombinedData %>% 
+                           filter(Year > 2004, Year < 2017, AgeGroup5b != "100 or older"))
 
-PrevalenceRatioPlot <- ggplot(CombinedDataFiveYearWide %>%
-                                filter(PrevalenceRaw_F > 5, PrevalenceRaw_M > 5, Year > 2004, Year < 2017),
-                              aes(AgeGroup, PrevalenceRatio)) +
-  theme_bw() +
-  theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_blank(),
-        panel.grid.major.y = element_line(colour = "grey50", linetype = "dashed"),
-        axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(x = "", y = "Male/Female prevalence ratio", title = "PrevalenceRaw_F > 5 & PrevalenceRaw_M > 5") + 
-  geom_boxplot(outlier.shape = NA, fill = MoviePalettes$AmericanBeauty[3]) +
-  # scale_color_manual(values = c(rev(RColorBrewer::brewer.pal(7, name = "Purples")[-1]),
-  #                               RColorBrewer::brewer.pal(9, name = "Oranges")[-1]), name = "Year") +
-  # geom_point(aes(color = as.character(Year)),
-  #            position = position_dodge2(width = 0.5))
-  geom_jitter(width = 0.2, height = 0, size = 1, color = MoviePalettes$AmericanBeauty[1]) +
-  geom_hline(yintercept = 1.5, color = "red") +
-  geom_text(data = StatPrevalenceRatioDF, aes(x, y, label = label))
+IncideceRatioStat2b <- MASS::glm.nb(PDnew ~ c(Age-30)*Sex + Year + offset(log(Number)),data = CombinedData %>% 
+                                      filter(Year > 2004, Year < 2017, AgeGroup5b != "100 or older"))
 
-ggsave("Results/PrevalenceRatioPlot.pdf", plot = PrevalenceRatioPlot, device = "pdf", width = 5, height = 5, dpi = 300, useDingbats = F)
-ggsave("Results/PrevalenceRatioPlot.png", plot = PrevalenceRatioPlot, device = "png", width = 5, height = 5, dpi = 300)
+#check for whether adding interaction term is appropriate
+anova(IncideceRatioStat2, IncideceRatioStat2b)
 
 
 #Calculate odds ratio for mortality M vs F in each age in PD vs General
-temp2 <- CombinedDataFiveYears2 %>% filter(Year > 2004, Year < 2017,
+temp2 <- CombinedDataFiveYears5b %>% filter(Year > 2004, Year < 2017,
                                            DeathPD > 2, !is.na(AgeGroup), AgeGroup != "100 or older") %>%
   select(Year, Sex, AgeGroup, Number, Death, PrevalenceRaw, DeathPD) %>% droplevels()
 
@@ -567,7 +437,11 @@ OddsList <- sapply(levels(temp2$AgeGroup) , function(agegroup){
                  Sex = sex,
                  AgeGroup = agegroup,
                  OddRatioEst = round(Output$measure[2,1], digits = 2),
-                 OddsRatio = paste0(round(Output$measure[2,1], digits = 2), " (", round(Output$measure[2,2], digits = 2), "-",  round(Output$measure[2,3], digits = 2),")"),
+                 OddLow = round(Output$measure[2,2], digits = 2),
+                 OddsHigh = round(Output$measure[2,3], digits = 2),
+                 OddsRatio = paste0(round(Output$measure[2,1], digits = 2),
+                                    " (", round(Output$measure[2,2], digits = 2), "-",
+                                    round(Output$measure[2,3], digits = 2),")"),
                  ChiPvalue = signif(Output$p.value[2,3], digits = 1))
     }, simplify = F) %>% rbindlist() %>% data.frame()
   }, simplify = F) 
@@ -583,7 +457,7 @@ OddsRatioPlot <- ggplot(OddsList,
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor.y = element_line(colour = "grey50", linetype = "dashed"),
         panel.grid.major.y = element_line(colour = "grey50", linetype = "dashed"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
+        #axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = c(0.8,0.8),
         legend.background  = element_rect(fill = 0, color = 0),
         legend.key = element_rect(fill = 0, color = 0)) +
@@ -598,5 +472,277 @@ OddsRatioPlot <- ggplot(OddsList,
   coord_cartesian(ylim = c(0, 7)) +
   geom_hline(yintercept = 1, color = "red")
 
-ggsave("Results/OddsRatioPlot2.pdf", plot = OddsRatioPlot,  device = "pdf", width = 6, height = 4, dpi = 300, useDingbats = F)
-ggsave("Results/OddsRatioPlot2.png", plot = OddsRatioPlot, device = "png", width = 6, height = 4, dpi = 300)
+
+pd <- position_dodge(0.5)
+ggplot(OddsList,
+       aes(AgeGroup, OddRatioEst)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "top") +
+  labs(x = "", y = "OddsRatio (Chi-square)") +
+  new_scale("fill") +
+  scale_color_manual(values =c(MoviePalettes$BugsLife[4],
+                              MoviePalettes$BugsLife[2]), name = "") +
+  geom_hline(yintercept = 1, color = "red", lty = "dashed") +
+  # geom_rect(data = RectDF[1:5,],
+  #           aes(xmin=xMin, xmax=xMax, ymin=yMin, ymax=yMax), fill="grey",
+  #           alpha=0.4, inherit.aes = FALSE) +
+  geom_point(aes(color = Sex, group = Sex),
+                 position = pd, show.legend = T) +
+  geom_errorbar(aes(ymin = OddLow, ymax = OddsHigh, color = Sex, group = Sex),
+                position = pd, show.legend = T) +
+  coord_cartesian(ylim = c(0, 10)) +
+  facet_wrap(~Year)
+ggsave(paste0(ResultsPath, "OddsRatiosByYear.pdf"), device = "pdf", width = 10, height = 8, dpi = 300, useDingbats = F)
+
+
+
+ggarrange(ggarrange(MortalityPDPlot, LogMortalityPlot2, labels = c("A", "B")),
+          OddsRatioPlot, nrow = 2, labels = c("", "C"), heights = c(1.5,1))
+
+ggsave("Results/MortalityRatioCombined.pdf",  device = "pdf", width = 6, height = 6, dpi = 300, useDingbats = F)
+
+#Create Forest plots
+PDdata <- CombinedData %>% filter(AgeGroup5 != "100 or older",
+                                  Year > 2004, Year < 2017)
+
+GetModSumm <- function(Mod, exp = T, digits = 2){
+  Coef <- Mod %>% summary %>% coef() %>% .[-1,] %>% data.frame()
+  Covar =  rownames(Coef)
+  names(Coef) <- c("Est", "SE", "zVal", "pVal")
+  Coef$pVal <- sapply(Coef$pVal, function(x){
+    if(x < 0.01){
+      paste0(formatC(x, digits = digits, format = "e"), GetSigChar(x))
+    } else {
+      round(x, digits = 2)
+    }
+  })
+  
+  Covar = data.frame(Covar = Covar)
+  DF <- cbind(Covar, Coef)
+  
+  DF$Model <- if(unique(Mod$family$family) == "poisson"){
+    "Poisson"
+  } else {
+    "NegBin"
+  }
+  
+  Confint <- confint(Mod) %>% .[-1,] %>% data.frame()
+  names(Confint) <- c("low", "high")
+  
+  DF <- cbind(DF, Confint)
+  if(exp){
+    
+    DF %<>% mutate("exp(Est)" = exp(Est),
+                   "exp(low)" = exp(low),
+                   "exp(high)" = exp(high))
+    
+    DF$Est <- sapply(DF$Est, function(x){
+      if(x < 0.001){
+        formatC(x, digits = 2, format = "e")
+      } else {
+        signif(x, digits = 2)
+      }
+    })
+    
+    DF$SE <- sapply(DF$SE, function(x){
+      if(x < 0.001){
+        formatC(x, digits = 2, format = "e")
+      } else {
+        signif(x, digits = 2)
+      }
+    })
+  }
+  return(DF)
+}
+
+
+GetPoissoStat <- function(Data = PDdata, ageGroups = unique(PDdata$AgeGroup5b), AgeGroupCol = "AgeGroup5b",
+                          measure, Offset = "Number", rawMeasure){
+  StatsList <- sapply(ageGroups, function(ageGroup){
+    ObsYears = unique(Data$Year)
+    subData <- Data[Data[[AgeGroupCol]] == ageGroup,]
+    Base = subData %>% filter(Year %in% c(ObsYears[1]:ObsYears[3])) %>% .[[measure]] %>% mean
+    Final = subData %>% filter(Year %in% c(2014:2016)) %>% .[[measure]] %>% mean
+    Mean = mean(subData[[measure]])
+    SD = sd(subData[[measure]])
+    Model = formula(paste0(rawMeasure, "~Year + Sex + offset(log(", Offset,"))"))
+    
+    temp <- glm(Model, family = "poisson", data = subData)
+    
+    DispPoiss = formatC(temp$deviance/temp$df.residual, digits = 2, format = "e")
+    
+    CoefYearPoiss = summary(temp)$coef[2,1]
+    pValuYearePoiss =summary(temp)$coef[2,4]
+    CoefSexPoiss = summary(temp)$coef[3,1]
+    pValuSexPoiss = summary(temp)$coef[3,4]
+    DF <- data.frame(AgeGroup = ageGroup,
+                     CaseNumberCor = cor.test(subData[[rawMeasure]], subData[["Number"]])$estimate,
+                     CoefYearPoiss = formatC(CoefYearPoiss, digits = 2, format = "e"),
+                     logCoefYearPoiss = formatC(exp(CoefYearPoiss), digits = 2, format = "e"),
+                     pValueYearPoiss = formatC(pValuYearePoiss, digits = 2, format = "e"),
+                     CoefSexPoiss = formatC(CoefSexPoiss, digits = 2, format = "e"),
+                     logCoefSexPoiss = signif(exp(CoefSexPoiss), digits = 2),
+                     pValueSexPoiss = formatC(pValuSexPoiss, digits = 2, format = "e"),
+                     DispPoiss = DispPoiss,
+                     CoefYearNB = NA,
+                     logCoefYearNB = NA,
+                     pValueYearNB = NA,
+                     CoefSexNB = NA,
+                     logCoefSexNB = NA,
+                     pValueSexNB = NA,
+                     Change = paste0(round(100*(Final/Base-1), digits = 0), "%"),
+                     YearlyCases = round(mean(subData$PDnew), digits = 1),
+                     CV = paste0(round(100*SD/Mean, digits = 1), "%"))
+    DFsum <- GetModSumm(temp, exp = T, digits = 2)
+    
+    temp2 = NA
+    if(DispPoiss > 1.5){
+      temp2 <- MASS::glm.nb(formula = Model, data = subData)
+      if("th.warn" %in% names(temp2)){
+        if(temp2$th.warn == "iteration limit reached"){
+          DF %<>% mutate(CoefYearNB = "Didn't converge")
+        } else {
+          DF %<>% mutate(CoefSexNB = "Non-convergence issue")
+        }
+        temp2 <- NA
+      } else {
+        DF %<>% mutate(CoefYearNB = summary(temp2)$coef[2,1],
+                       logCoefYearNB = formatC(exp(CoefYearNB), digits = 2, format = "e"),
+                       pValueYearNB = formatC(summary(temp2)$coef[2,4], digits = 2, format = "e"),
+                       CoefSexNB = summary(temp2)$coef[3,1],
+                       logCoefSexNB = formatC(exp(CoefSexNB), digits = 2, format = "e"),
+                       pValueSexNB = formatC(summary(temp2)$coef[3,4], digits = 2, format = "e"),
+                       CoefYearNB = formatC(CoefYearNB, digits = 2, format = "e"),
+                       CoefSexNB = formatC(CoefSexNB, digits = 2, format = "e"))
+        
+        DFsum <- GetModSumm(temp2, exp = T, digits = 2)
+      }
+    }
+    
+    FinalDF <- DFsum %>% mutate(AgeGroup = ageGroup) %>%
+      select(ncol(.), c(1:ncol(.)-1))
+    
+    list(poissonMod = temp, nbMod = temp2, statsDF_all = DF, FinalStat_DF = FinalDF)
+  }, simplify = F)
+  
+  
+  
+  StatsAlldata <- lapply(StatsList, function(ageGroup){
+    ageGroup$statsDF_all
+  }) %>% rbindlist() %>% data.frame
+  
+  
+  StatsFinal <- lapply(StatsList, function(ageGroup){
+    ageGroup$FinalStat_DF
+  }) %>% rbindlist() %>% data.frame %>%
+    arrange(Covar)
+  return(list(StatsList = StatsList, StatsAlldata = StatsAlldata, StatsFinal = StatsFinal))
+  
+}
+
+GetForestplotTable <- function(Data, covar){
+  CovarData <- Data %>% filter(Covar == covar)
+  rownames(CovarData) <- paste0("Age_", CovarData$AgeGroup)
+  
+  Table <- cbind(c("AgeGroup", as.character(CovarData$AgeGroup)),
+                 c("pValue", CovarData$pVal),
+                 c("Estimate (SE)", paste0(CovarData$Est, " (",
+                                           CovarData$SE, ")")))
+  return(list(Data = CovarData, Table = Table))
+}
+
+
+
+#Change in Incidence across the years
+InsidenceStats <- GetPoissoStat(Data = PDdata, measure = "Incidence", rawMeasure = "PDnew")
+IncidenceSexForest <- GetForestplotTable(InsidenceStats$StatsFinal, "SexM")
+IncidenceYearForest <- GetForestplotTable(InsidenceStats$StatsFinal, "Year")
+
+
+#Change in Prevalence across the years
+PrevalenceStats <- GetPoissoStat(measure = "Prevalence", rawMeasure = "PrevalenceRaw")
+PrevalenceSexForest <- GetForestplotTable(PrevalenceStats$StatsFinal, "SexM")
+PrevalenceYearForest <- GetForestplotTable(PrevalenceStats$StatsFinal, "Year")
+
+
+#Change in Mortality of PD across the years
+MortalityPDStats <- GetPoissoStat(PDdata %>% filter(PrevalenceRaw > 5),
+                                  measure = "MortalityPD", rawMeasure = "DeathPD", Offset = "PrevalenceRaw")
+MortalityPDSexForest <- GetForestplotTable(MortalityPDStats$StatsFinal, "SexM")
+MortalityPDYearForest <- GetForestplotTable(MortalityPDStats$StatsFinal, "Year")
+
+
+pdf(paste0(ResultsPath, "ForestPlots.pdf"),  width = 6, height = 4, useDingbats = F)                
+forestplot(title = "Incidence, Sex",
+           IncidenceSexForest$Table,
+           mean = c(NA, IncidenceSexForest$Data$exp.Est.),
+           lower = c(NA, IncidenceSexForest$Data$exp.low.),
+           upper = c(NA, IncidenceSexForest$Data$exp.high.),
+           is.summary = c(TRUE, rep(FALSE, 9)), 
+           clip = c(1,2.4), zero = 1.5, boxsize = 0.2, 
+           col = fpColors(box=c("royalblue"),line="darkblue", summary="royalblue", hrz_lines = "#444444"),
+           txt_gp = fpTxtGp(cex=1, title = gpar(cex = 1.5), xlab = gpar(cex=1), ticks = gpar(cex=0.75)),
+           xlab = "M/F ratio")
+
+
+forestplot(title = "Incidence (2005-2016)",
+           IncidenceYearForest$Table, new_page = T,
+           mean = c(NA, IncidenceYearForest$Data$exp.Est.),
+           lower = c(NA, IncidenceYearForest$Data$exp.low.),
+           upper = c(NA, IncidenceYearForest$Data$exp.high.),
+           is.summary = c(TRUE, rep(FALSE, 9)), 
+           clip = c(0.9,1.1), zero = 1, boxsize = 0.2, xticks = c(seq(0.9, 1.1, 0.02)),
+           col = fpColors(box="royalblue",line="darkblue", summary="royalblue", hrz_lines = "#444444"),
+           txt_gp = fpTxtGp(cex=1, title = gpar(cex = 1.5), xlab = gpar(cex=1), ticks = gpar(cex=0.75)),
+           xlab = "Yearly change")
+
+
+
+forestplot(title = "Prevalence, Sex",
+           PrevalenceSexForest$Table, new_page = TRUE,
+           mean = c(NA, PrevalenceSexForest$Data$exp.Est.),
+           lower = c(NA, PrevalenceSexForest$Data$exp.low.),
+           upper = c(NA, PrevalenceSexForest$Data$exp.high.),
+           is.summary = c(TRUE, rep(FALSE, 9)), 
+           clip = c(1,2), zero = 1.5, boxsize = 0.2, xticks = (seq(1,2, 0.1)),
+           col = fpColors(box=c("royalblue"),line="darkblue", summary="royalblue", hrz_lines = "#444444"),
+           txt_gp = fpTxtGp(cex=1, title = gpar(cex = 1.5), xlab = gpar(cex=1), ticks = gpar(cex=0.75)),
+           xlab = "M/F ratio")
+
+
+
+forestplot(title = "Prevalence (2005-2016)",
+           PrevalenceYearForest$Table, new_page = TRUE,
+           mean = c(NA, PrevalenceYearForest$Data$exp.Est.),
+           lower = c(NA, PrevalenceYearForest$Data$exp.low.),
+           upper = c(NA, PrevalenceYearForest$Data$exp.high.),
+           is.summary = c(TRUE, rep(FALSE, 9)), 
+           clip = c(0.9,1.1), zero = 1, boxsize = 0.2, xticks = seq(0.9, 1.1, 0.02),
+           col = fpColors(box="royalblue",line="darkblue", summary="royalblue", hrz_lines = "#444444"),
+           txt_gp = fpTxtGp(cex=1, title = gpar(cex = 1.5), xlab = gpar(cex=1), ticks = gpar(cex=0.75)),
+           xlab = "Yearly change")
+
+forestplot(title = "MortalityPD, Sex",
+           MortalityPDSexForest$Table,
+           mean = c(NA, MortalityPDSexForest$Data$exp.Est.),
+           lower = c(NA, MortalityPDSexForest$Data$exp.low.),
+           upper = c(NA, MortalityPDSexForest$Data$exp.high.),
+           is.summary = c(TRUE, rep(FALSE, 9)), 
+           clip = c(0,2.5), zero = 1, boxsize = 0.2, xticks = c(seq(0, 2.5, 0.5)),
+           col = fpColors(box=c("royalblue"),line="darkblue", summary="royalblue", hrz_lines = "#444444"),
+           txt_gp = fpTxtGp(cex=1, title = gpar(cex = 1.5), xlab = gpar(cex=1), ticks = gpar(cex=0.75)),
+           xlab = "M/F ratio")
+
+forestplot(title = "MortalityPD, Year",
+           MortalityPDYearForest$Table,
+           mean = c(NA, MortalityPDYearForest$Data$exp.Est.),
+           lower = c(NA, MortalityPDYearForest$Data$exp.low.),
+           upper = c(NA, MortalityPDYearForest$Data$exp.high.),
+           is.summary = c(TRUE, rep(FALSE, 9)), 
+           clip = c(0.9,1.1), zero = 1, boxsize = 0.2, xticks = c(seq(0.9, 1.1, 0.02)),
+           col = fpColors(box=c("royalblue"),line="darkblue", summary="royalblue", hrz_lines = "#444444"),
+           txt_gp = fpTxtGp(cex=1, title = gpar(cex = 1.5), xlab = gpar(cex=1), ticks = gpar(cex=0.75)),
+           xlab = "Yearly change")
+dev.off()
+
