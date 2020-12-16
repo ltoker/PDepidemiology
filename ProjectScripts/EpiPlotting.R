@@ -622,7 +622,13 @@ GetPoissoStat <- function(Data = PDdata, ageGroups = unique(PDdata$AgeGroup5b), 
     
     FinalDF <- DFsum %>% mutate(AgeGroup = ageGroup) %>%
       select(ncol(.), c(1:ncol(.)-1))
-    
+
+    FinalDF %<>% mutate(DispPoisson = DF$DispPoiss,
+                        Change = DF$Change,
+                        CV = DF$CV,
+                        YearlyCases = DF$YearlyCases,
+                        Est_CI = paste0(Est, " (", formatC(low, digits = 2, format = "e"),
+                                        ",", formatC(high, digits = 2, format = "e"), ")"))
     list(poissonMod = temp, nbMod = temp2, statsDF_all = DF, FinalStat_DF = FinalDF)
   }, simplify = F)
   
@@ -659,12 +665,14 @@ InsidenceStats <- GetPoissoStat(Data = PDdata, measure = "Incidence", rawMeasure
 IncidenceSexForest <- GetForestplotTable(InsidenceStats$StatsFinal, "SexM")
 IncidenceYearForest <- GetForestplotTable(InsidenceStats$StatsFinal, "Year")
 
+write.table(InsidenceStats$StatsFinal, file = paste0(ResultsPath, "InsidenceStat.tsv"), sep = "\t", row.names = F, col.names = T)
 
 #Change in Prevalence across the years
 PrevalenceStats <- GetPoissoStat(measure = "Prevalence", rawMeasure = "PrevalenceRaw")
 PrevalenceSexForest <- GetForestplotTable(PrevalenceStats$StatsFinal, "SexM")
 PrevalenceYearForest <- GetForestplotTable(PrevalenceStats$StatsFinal, "Year")
 
+write.table(PrevalenceStats$StatsFinal, file = paste0(ResultsPath, "PrevalenceStat.tsv"), sep = "\t", row.names = F, col.names = T)
 
 #Change in Mortality of PD across the years
 MortalityPDStats <- GetPoissoStat(PDdata %>% filter(PrevalenceRaw > 5),
