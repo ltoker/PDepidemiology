@@ -102,10 +102,18 @@ SurvivalCombined <- rbind(GeneralSurvival %>% select(AgeStart, AgeGroup5, AgeGro
   filter(AgeGroup5b != "Age_100 or older")
 
 
-SurvivalCombined$ObsTime[SurvivalCombined$ObsTime > 156] <- 156
-SurvivalCombined$Status[SurvivalCombined$ObsTime > 156] <- 0
+SurvivalCombined$ObsTime[SurvivalCombined$ObsTime >= 156] <- 156
+SurvivalCombined$Status[SurvivalCombined$ObsTime >= 156] <- 0
 
 SurvivalCombined$SurvObj <- with(SurvivalCombined, Surv(ObsTime, event = Status))
+
+SurvivalCombined$Sex <- sapply(SurvivalCombined$Sex, function(x){
+  if(grepl("^F", as.character(x))){
+    "F"
+  } else if(grepl("^M", as.character(x))){
+    "M"
+  }
+})
 
 KMbySexandPop <- sapply(unique(SurvivalCombined$AgeGroup5b), function(group){
   data = SurvivalCombined %>% filter(AgeGroup5b == group)
@@ -144,6 +152,40 @@ ggsave("Results/KaplanMeierPlotAll.pdf", plot = KaplanMeierPlot,
        device = "pdf", width = 15,
        height = 10, dpi = 300, useDingbats = F)
 
+
+#Get 50% survival table
+
+AllGroups = SurvivalCombined %>% mutate(Group = paste(Population, Sex, sep = "_")) %>%
+  .$Group %>% unique 
+
+SurvTable <- sapply(names(PlotKMforAgeGroupPopultion), function(Age){
+  data = PlotKMforAgeGroupPopultion[[Age]]$data.survplot %>%
+    mutate(Group = paste(Population, Sex, sep = "_"))
+  DF <- data %>% filter(surv <= 0.5, ) %>% group_by(Group) %>%
+    summarise(Surv_0.5 = min(time)) %>% data.frame() %>%
+    mutate(Age = Age)
+
+  Missing = AllGroups[!AllGroups %in% DF$Group]
+  if(length(Missing) > 0){
+    if(length(Missing) == 4){
+      DF = data.frame(Group = Missing,
+                      Surv_0.5 = "> 156",
+                      Age = Age)
+    } else {
+      MissingDF = data.frame(Group = Missing,
+                             Surv_0.5 = "> 156",
+                             Age = Age)
+      DF = rbind(DF, MissingDF)
+    }
+    
+  }
+  return(DF)
+}, simplify = F) %>% rbindlist() %>% data.frame()
+
+SurvTable %>% pivot_wider(names_from = Age,
+                          names_sep = ".", values_from = c(Surv_0.5)) %>%
+  data.frame() %>%
+  write.table(paste0(ResultsPath, "SurvivalTable.tsv"), sep = "\t", row.names = F, col.names = T)
 
 #Compare five year PD survival between cased with incidence 2005-2007 and cases with incidence
 #2010-2012
