@@ -24,6 +24,15 @@ SetAgeGroup <- function(AgeStart = 30, AgeEnd = 99, Gap = 5, Agevec){
 
 
 ########### Get general population demographics data from https://www.ssb.no/en/statbank ################
+AllPopulation <-  read.table("data/AllPopulation.txt", header = T, sep = "\t", comment.char = "#")
+AllPopulation %<>% pivot_longer(cols = matches('^X'),
+                                names_to = "Year",
+                                values_to = "Number") %>% data.frame()
+AllPopulation$Year <- sapply(AllPopulation$Year, function(x) gsub("X", "", x))
+
+AllPopulationSum = AllPopulation %>% group_by(Year, Sex) %>%
+  summarise(TotNumber = sum(Number)) %>% data.frame %>% mutate(YearSex = paste0(Year, "_", Sex))
+
 StatBankDataPerYear <- read.table("data/PersonerByOneAgeYearUpdated.txt", header = T, sep = "\t", comment.char = "#") %>% select(-Region)
 
 AgeGroups <- SetAgeGroup(AgeStart = 30, AgeEnd = 99, Gap = 5, Agevec = StatBankDataPerYear$Age)
@@ -222,7 +231,21 @@ CombinedData$BirthEvent <- sapply(CombinedData$BirthDate, function(x){
 })
 
 
+#Get crude incidence and prevalence
+AllPD <- CombinedData %>% filter(Year > 2004, Year < 2017) %>% group_by(Year, Sex) %>%
+  summarise(TotalPDnew = sum(PDnew), TotalPrevalenceRaw = sum(PrevalenceRaw)) %>%
+  data.frame() %>% mutate(YearSex = paste0(Year, "_", Sex))
 
+AllPopulationSum <- merge(AllPopulationSum, AllPD %>% select(-Sex, -Year), by = "YearSex", sort = F)
+AllPopulationSum %<>% mutate(CrudeIncidence = 100000*TotalPDnew/TotNumber,
+                             CrudePrevalence = 100000*TotalPrevalenceRaw/TotNumber)
+
+Above60Sum <- CombinedData %>% filter(Age >= 65, Year > 2004, Year < 2017) %>%
+  select(Year, Age, Sex, Number, PDnew, PrevalenceRaw) %>% group_by(Year, Sex) %>%
+  summarise(TotNumber = sum(Number), TotalPDnew = sum(PDnew),
+            TotalPrevalenceRaw = sum(PrevalenceRaw)) %>% data.frame()
+Above60Sum %<>% mutate(CrudeIncidence = 100*TotalPDnew/TotNumber,
+                       CrudePrevalence = 100*TotalPrevalenceRaw/TotNumber)
 
 #Group by age groups
 CombinedDataFiveYears <- CombinedData %>%
