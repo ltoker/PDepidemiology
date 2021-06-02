@@ -82,7 +82,7 @@ StatBankDataPerYear %<>% mutate(Mortality = 100000*Death/Number) %>% filter(Year
 #########################################################################################################
 
 #Get PD data
-IndividualMortality <- read.table("data/IndividualMortalityUpdated.txt", header = T, sep = "\t")
+IndividualMortality <- read.table("data/IndividualMortality010621.txt", header = T, sep = "\t")
 IndividualMortality$Sex <- sapply(IndividualMortality$PasientKjonn, function(x){
   if(x == 1){
     "Male"
@@ -150,7 +150,7 @@ ggplot(IndividualMortality %>% filter(!is.na(AgeGroup5)), aes(YearsOnPrescriptio
   geom_point(size = 0.5)
 
 #Filter patients with treated for more than one year and untreated for more than two years
-# with age of onset < 75, and subjects younger than 30 
+# with age of onset < 80, and subjects younger than 30 
 IndividualMortality %<>% filter(MonthToEnd > 0,
                                 !(YearsOnPrescription < 1 & YearsOffPrescription > 2 & AgeOfOnsetNew < 80),
                                 AgeGroup5 != "Younger than 30")
@@ -362,3 +362,4 @@ CombinedDataWide <- pivot_wider(CombinedData %>% droplevels() %>%
          IncidenceProp = Incidence_M/(Incidence_F+Incidence_M),
          PrevalenceProp = Prevalence_M/(Prevalence_F+Prevalence_M),
          MortalityPDProp = MortalityPD_M/(MortalityPD_F+MortalityPD_M))
+
