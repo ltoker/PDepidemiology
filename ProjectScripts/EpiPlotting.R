@@ -198,7 +198,31 @@ RelIncidencePlot <- ChangeFacetLabels(RelIncidencePlot, FillCol = c(MoviePalette
 ggarrange(PDincidencePlot, RelIncidencePlot, ncol = 2, widths = c(1.5,2))
 ggsave("Results/PDincidence.pdf", device = "pdf", width = 10, height = 4, dpi = 300, useDingbats = F)
 
+SummaryTable <- CombinedDataFiveYears %>% 
+  filter(Year >  2004, Year < 2017,
+         !AgeGroup %in% c("Younger than 30", "100 or older")) %>%
+  group_by(Sex, AgeGroup) %>% summarise(MedianIncindence = median(Incidence, na.rm = T),
+                                        MinIncindence = min(Incidence, na.rm = T),
+                                        MaxIncindence = max(Incidence, na.rm = T),
+                                        MedianPrevalence = median(Prevalence, na.rm = T),
+                                        MinPrevalence = min(Prevalence, na.rm = T),
+                                        MaxPrevalence = max(Prevalence, na.rm = T),
+                                        MedianMortality = median(Mortality, na.rm = T),
+                                        MinMortality = min(Mortality, na.rm = T),
+                                        MaxMortality = max(Mortality, na.rm = T)) %>% data.frame()
+SummaryTable %<>% mutate(Incidence = paste0(round(MedianIncindence, digits = 1), " (",
+                                            round(MinIncindence, digits = 1), "-",
+                                            round(MaxIncindence, digits = 1), ")"),
+                         Prevalence = paste0(round(MedianPrevalence, digits = 1), " (",
+                                            round(MinPrevalence, digits = 1), "-",
+                                            round(MaxPrevalence, digits = 1), ")"),
+                         Mortality = paste0(round(MedianMortality, digits = 1), " (",
+                                             round(MinMortality, digits = 1), "-",
+                                             round(MaxMortality, digits = 1), ")"))
 
+SummaryTable %>% select(-matches("Median|Min|Max")) %>%
+  write.table(paste0(ResultsPath, "EpiSummary.tsv"), sep = "\t", row.names = F, col.names = T) 
+                                                                        
 
 #Plot PD Prevalence
 PDprevalencePlot <- ggplot(CombinedDataFiveYears %>% 
