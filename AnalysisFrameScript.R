@@ -1,9 +1,8 @@
-BiocManager::install("devtools")
+BiocManager::install("devtools", force = T)
 library(devtools)
 source_url("https://github.com/ltoker/GeneralRscripts/blob/main/generalFunc.R?raw=T")
 
 ResultsPath = "Results"
-
 if(!ResultsPath %in% list.dirs(full.names = F)){
   dir.create(ResultsPath)
 }
