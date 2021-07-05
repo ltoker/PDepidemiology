@@ -96,7 +96,7 @@ IndividualMortality %<>% mutate(AgeStart = AgeOfOnsetNew,
                                ObsTime = MonthToEnd)
 
 SurvivalCombined <- rbind(GeneralSurvival %>% select(AgeStart, AgeGroup5, AgeGroup5b, Sex, ObsTime, Status) %>% mutate(Population = "Global"),
-                          IndividualMortality %>% select(AgeStart, AgeGroup5, AgeGroup5b, Sex, ObsTime, Status) %>% mutate(Population = "PD")) %>%
+                          IndividualMortality %>% filter(year(DateFirstDrug) > 2004) %>% select(AgeStart, AgeGroup5, AgeGroup5b, Sex, ObsTime, Status) %>% mutate(Population = "PD")) %>%
   mutate(AgeGroup5 = paste0("Age_", AgeGroup5),
          AgeGroup5b = paste0("Age_", AgeGroup5b)) %>%
   filter(AgeGroup5b != "Age_100 or older")
@@ -148,7 +148,7 @@ KaplanMeierPlot <- ggarrange(plotlist = sapply(names(PlotKMforAgeGroupPopultion)
     labs(title = group)
 }, simplify = F))
 
-ggsave("Results/KaplanMeierPlotAll.pdf", plot = KaplanMeierPlot,
+ggsave("Results/KaplanMeierPlotAll_new.pdf", plot = KaplanMeierPlot,
        device = "pdf", width = 15,
        height = 10, dpi = 300, useDingbats = F)
 
