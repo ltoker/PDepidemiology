@@ -223,7 +223,13 @@ SummaryTable %<>% mutate(Incidence = paste0(round(MedianIncindence, digits = 1),
 SummaryTable %>% select(-matches("Median|Min|Max")) %>%
   write.table(paste0(ResultsPath, "EpiSummary.tsv"), sep = "\t", row.names = F, col.names = T) 
                                                                         
+TableS1 <- CombinedDataFiveYears %>% 
+  filter(Year >  2004, Year < 2017,
+         !AgeGroup %in% c("Younger than 30", "100 or older")) %>%
+  select(-matches("2$"), -YearAgeGroupSex5, -DeltaPD)
 
+write.table(TableS1, paste0(ResultsPath, "TableS1.tsv"),
+            sep = "\t", row.names = F, col.names = T) 
 #Plot PD Prevalence
 PDprevalencePlot <- ggplot(CombinedDataFiveYears %>% 
                              filter(Year > 2004, Year <2017, PrevalenceRaw > 2,
